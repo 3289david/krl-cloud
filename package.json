@@ -1,0 +1,15 @@
+{
+  "name": "krl-cloud",
+  "version": "0.1.0",
+  "description": "KRL Cloud - 분산형 PC 호스팅 PaaS (name.krl.kr)",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node scripts/dev.js",
+    "agent": "node agent/agent.js",
+    "test": "node scripts/smoke.js",
+    "build": "node scripts/build.js"
+  }
+}

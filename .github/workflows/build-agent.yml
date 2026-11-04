@@ -1,0 +1,39 @@
+name: build-agent
+# Windows / macOS / Linux (x64, arm64) 용 에이전트 단일 실행 파일을 각 OS 러너에서 빌드한다.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-13, macos-latest, ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node scripts/build.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: krl-agent-${{ matrix.os }}
+          path: |
+            dist/krl-agent-*
+            dist/krl-agent.js
+            dist/install.sh
+            dist/install.ps1
+            dist/SHA256SUMS
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with: { files: artifacts/* }
