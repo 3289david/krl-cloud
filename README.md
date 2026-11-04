@@ -55,7 +55,15 @@ node agent/agent.js install --server http://localhost:8080 --allow-unsandboxed  
 **단일 실행 파일** 빌드: `npm run build` → `dist/krl-agent-<os>-<arch>`.
 이 PC(Windows)용은 로컬 빌드되며, macOS/Linux/arm64 는 `.github/workflows/build-agent.yml` 이 각 OS 러너에서 빌드해 릴리스에 첨부합니다.
 
-> **Android / iOS**: 네이티브 앱(APK)은 Android SDK 가 필요해 포함되지 않았습니다. Android 는 Termux 에이전트로 지원하며 정적 사이트 호스팅 위주입니다. iOS 는 백그라운드 서버 실행 제한으로 지원하지 않습니다.
+### Android 앱 (APK)
+`android/` 의 Kotlin 앱입니다. 같은 프로토콜(페어링 → 하트비트 → 릴레이)로 노드가 되어 **빌드가 필요 없는 정적 사이트**를 호스팅합니다 (안드로이드는 사용자 코드를 실행할 수 없음). 포그라운드 서비스로 계속 실행되고, "충전 중에만" / "부팅 시 자동 시작" 옵션이 있습니다.
+- 빌드: GitHub Actions `build` 워크플로가 서명 전 APK 를 만듭니다. **서명은 로컬에서** 합니다 (키는 저장소/시크릿에 올리지 않음):
+  `zipalign -p 4 in.apk aligned.apk` → `apksigner sign --ks android-signing/krl-release.jks --ks-key-alias krl --out krl-cloud-android.apk aligned.apk`
+- `android-signing/krl-release.jks` 는 이 PC에만 있습니다(git 제외). **반드시 백업하세요** — 잃어버리면 같은 앱으로 업데이트할 수 없습니다.
+- 에뮬레이터(Android 14)에서 설치 → 연결 코드 → 대시보드 승인 → 정적 사이트 호스팅·게이트웨이 응답까지 검증했습니다. 실제 기기는 미검증.
+- iOS 는 백그라운드 서버 실행 제한으로 지원하지 않습니다.
+
+배포 파일은 GitHub **Releases** 에 있습니다 (Windows/macOS arm64/Linux x64 단일 실행 파일, APK, `krl-agent.js`, SHA256SUMS).
 
 ### 보안 모델
 - 에이전트는 **아웃바운드 연결만** 사용합니다 (포트포워딩/공인 IP 불필요, 게이트웨이가 요청을 롱폴링으로 릴레이).

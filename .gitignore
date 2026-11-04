@@ -12,3 +12,4 @@ android/build.log
 *.jks
 release/
 release-run.txt
+dist-release/
