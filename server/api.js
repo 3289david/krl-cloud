@@ -29,11 +29,13 @@ function requireUser(req) {
   if (!u) throw new HttpError(401, '로그인이 필요합니다');
   return u;
 }
-function newSession(res, user) {
+const clientIp = (req) => String(req.headers['cf-connecting-ip'] || req.socket.remoteAddress || '');
+function newSession(req, user) {
   const sid = U.token(24);
   S.db.sessions[sid] = { userId: user.id, exp: S.now() + 30 * 86400000 };
   S.touch();
-  return { 'set-cookie': `krl_sid=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${cfg.PORT === 443 ? '; Secure' : ''}` };
+  const https = String(req.headers['x-forwarded-proto'] || '').split(',')[0] === 'https' || !!req.headers['cf-visitor'];
+  return { 'set-cookie': `krl_sid=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${https ? '; Secure' : ''}` };
 }
 const userView = (u) => ({ id: u.id, email: u.email, name: u.name, credits: U.round(u.credits, 2), createdAt: u.createdAt, lastDaily: u.lastDaily || 0 });
 
@@ -133,8 +135,13 @@ const route = (method, pattern, fn, opts = {}) => {
 };
 
 // 인증
+const signups = new Map();
 route('POST', '/api/auth/signup', async (ctx) => {
   const b = ctx.body;
+  const ip = clientIp(ctx.req), sf = signups.get(ip) || { n: 0, t: S.now() };
+  if (S.now() - sf.t > 3600000) { sf.n = 0; sf.t = S.now(); }
+  if (++sf.n > 10) throw new HttpError(429, '가입 시도가 너무 많습니다. 잠시 후 다시 시도하세요');
+  signups.set(ip, sf);
   const email = String(b.email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw bad('이메일 형식이 올바르지 않습니다');
   if (String(b.password || '').length < 8) throw bad('비밀번호는 8자 이상이어야 합니다');
@@ -144,11 +151,11 @@ route('POST', '/api/auth/signup', async (ctx) => {
   S.db.users[u.id] = u;
   L.add(u.id, 'signup', cfg.SIGNUP_CREDITS, {}, '가입 환영 크레딧');
   L.alert(u.id, 'info', 'KRL Cloud 가입을 환영합니다', `환영 크레딧 ${cfg.SIGNUP_CREDITS}이 지급되었습니다. PC를 등록해 크레딧을 더 벌어보세요.`);
-  ctx.headers = newSession(ctx.res, u);
+  ctx.headers = newSession(ctx.req, u);
   return userView(u);
 }, { anon: true });
 route('POST', '/api/auth/login', async (ctx) => {
-  const ip = ctx.req.socket.remoteAddress;
+  const ip = clientIp(ctx.req);
   const f = loginFails.get(ip) || { n: 0, t: 0 };
   if (f.n >= 8 && S.now() - f.t < 600000) throw new HttpError(429, '로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요');
   const u = Object.values(S.db.users).find((x) => x.email === String(ctx.body.email || '').trim().toLowerCase());
@@ -157,7 +164,7 @@ route('POST', '/api/auth/login', async (ctx) => {
     throw new HttpError(401, '이메일 또는 비밀번호가 올바르지 않습니다');
   }
   loginFails.delete(ip);
-  ctx.headers = newSession(ctx.res, u);
+  ctx.headers = newSession(ctx.req, u);
   return userView(u);
 }, { anon: true });
 route('POST', '/api/auth/logout', async (ctx) => {
@@ -178,6 +185,13 @@ route('PATCH', '/api/me', async (ctx) => {
   S.touch();
   return userView(u);
 });
+
+// 공개 통계 (개인정보 없음, 실제 집계값)
+route('GET', '/api/public/stats', async () => {
+  const nodes = Object.values(S.db.nodes), on = nodes.filter((n) => C.nodeOnline(n));
+  return { nodesOnline: on.length, nodesTotal: nodes.length, instancesRunning: Object.values(S.db.instances).filter((i) => i.status === 'running' && i.desired).length,
+    services: Object.values(S.db.services).filter((s) => s.status === 'active').length, regions: new Set(on.map((n) => n.region)).size };
+}, { anon: true });
 
 // 메타
 route('GET', '/api/meta', async (ctx) => ({

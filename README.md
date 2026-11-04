@@ -10,6 +10,11 @@ Network   (복제/복구)   ─┤        │ 게이트웨이: name.krl.kr → �
 Economy   (크레딧)      ─┘        └ Cloudflare DNS/SSL
 ```
 
+## 사이트 구성
+- `/` 공개 소개 사이트(기능·요금·설치·FAQ, 실시간 네트워크 수치) · `/app` 대시보드 · `/status` 상태 · `/terms` `/privacy`
+- 보안: CSP/nosniff/frame 차단 헤더, HTTPS 뒤에서 Secure 쿠키, 로그인/가입 시도 제한(Cloudflare 의 `CF-Connecting-IP` 기준)
+- 약관/개인정보 문서는 기본 초안입니다. 실서비스 공개 전에 운영 주체 정보와 법적 검토를 반영하세요.
+
 ## 빠른 시작 (로컬)
 
 ```bash

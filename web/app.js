@@ -664,7 +664,8 @@ P.settings = {
 const ACT = {
   menu: () => $('#side').classList.toggle('open'),
   theme() { const t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = t; try { localStorage.setItem('krl-theme', t); } catch {} },
-  async logout() { await run(() => POST('/api/auth/logout')); S.me = null; renderAuth(); },
+  async logout() { await run(() => POST('/api/auth/logout')); S.me = null; location.href = '/'; },
+  closemodal() { closeModal(); },
   ostab(el) {
     const box = el.closest('.cmdtabs'); $$('button', box).forEach((b) => b.classList.toggle('active', b === el));
     $('.cmdtext', box).textContent = JSON.parse(box.dataset.cmds)[el.dataset.os];
@@ -709,7 +710,7 @@ const ACT = {
       m.querySelector('.modal').innerHTML = `<h2>${esc(n.name)} 등록 완료</h2><p class="muted">제공할 PC에서 아래 명령을 실행하면 연결됩니다 (Node.js 20+ 필요). 연결되면 자동으로 자원 제공이 시작됩니다.</p>
         ${cmdTabs(n.commands)}
         <p class="muted small">Docker 가 설치되어 있으면 사용자 코드를 컨테이너에서 격리 실행합니다. 없으면 정적 사이트만 호스팅합니다.</p>
-        <div class="row" style="justify-content:flex-end"><a class="btn primary" href="#/nodes/${n.id}" onclick="document.getElementById('modal').remove()">노드 설정으로 이동</a></div>`;
+        <div class="row" style="justify-content:flex-end"><a class="btn primary" href="#/nodes/${n.id}" data-a="closemodal">노드 설정으로 이동</a></div>`;
     };
   },
   async pauseNode(el) { await run(() => PATCH('/api/nodes/' + el.dataset.id, { paused: el.dataset.p === '1' }), el.dataset.p === '1' ? '일시 중지했습니다' : '재개했습니다'); refresh(true); },
@@ -782,6 +783,7 @@ async function updateTop() {
 }
 
 async function boot() {
+  if (location.hash === '#/signup') location.hash = '#/overview';
   renderShell();
   await refresh(true);
   updateTop();
@@ -794,5 +796,5 @@ setInterval(updateTop, 6000);
   try { const t = localStorage.getItem('krl-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
   S.meta = await GET('/api/meta');
   try { S.me = await GET('/api/me'); } catch { S.me = null; }
-  if (S.me) boot(); else renderAuth();
+  if (S.me) boot(); else renderAuth(location.hash === '#/signup' ? 'signup' : 'login');
 })();
