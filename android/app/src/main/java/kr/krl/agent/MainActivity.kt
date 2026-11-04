@@ -71,7 +71,7 @@ class MainActivity : Activity() {
     private val tick = object : Runnable {
         override fun run() {
             val code = Agent.pairCode
-            codeView.text = if (code != null) code.take(4) + "-" + code.drop(4) else ""
+            codeView.text = if (code != null) code.replace("-", "").let { it.take(4) + "-" + it.drop(4) } else ""
             statusView.text = Agent.message
             action.text = if (serviceOn) "호스팅 중지" else if (Agent.paired) "호스팅 시작" else "이 기기 연결하기"
             ui.postDelayed(this, 1000)

@@ -10,3 +10,5 @@ android/app/build/
 android/.gradle/
 android/build.log
 *.jks
+release/
+release-run.txt
