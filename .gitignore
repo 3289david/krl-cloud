@@ -3,3 +3,10 @@ data/
 dist/
 *.log
 .env
+android-signing/
+android/local.properties
+android/build/
+android/app/build/
+android/.gradle/
+android/build.log
+*.jks

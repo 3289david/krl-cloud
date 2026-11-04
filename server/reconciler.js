@@ -56,7 +56,9 @@ function pickNode(svc, exclude = new Set()) {
   for (const n of Object.values(db.nodes)) {
     if (n.status !== 'online' || n.paused || n.disconnected || exclude.has(n.id)) continue;
     if (!n.caps || (svc.runtime === 'docker' && !n.caps.docker)) continue;
-    if (svc.runtime !== 'static' && !['docker', 'process'].includes(n.caps.sandbox)) continue; // 코드 실행 불가 노드 제외
+    // 코드 실행(앱 런타임 또는 정적 사이트의 빌드 단계)이 필요하면 샌드박스가 있는 노드만. 빌드 없는 정적 사이트는 모든 노드(안드로이드 포함)
+    const needsExec = svc.runtime !== 'static' || !!svc.buildCommand;
+    if (needsExec && !['docker', 'process'].includes(n.caps.sandbox)) continue;
     if (pl.groupId && n.groupId !== pl.groupId) continue;
     if (!pl.groupId && n.groupId && db.groups[n.groupId] && db.groups[n.groupId].private && db.groups[n.groupId].ownerId !== svc.ownerId) continue;
     if (pl.region && pl.region !== 'any' && n.region !== pl.region) continue;

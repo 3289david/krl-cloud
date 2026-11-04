@@ -1,25 +1,28 @@
-name: build-agent
-# Windows / macOS / Linux (x64, arm64) 용 에이전트 단일 실행 파일을 각 OS 러너에서 빌드한다.
+name: build
+# Windows / macOS / Linux 용 에이전트 단일 실행 파일과 Android APK(서명 전)를 빌드한다.
+# 서명 키는 저장소에 올리지 않는다: APK 는 로컬에서 apksigner 로 서명한 뒤 Releases 에 올린다 (README 참고).
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
 jobs:
-  build:
+  agent:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-13, macos-latest, ubuntu-latest, ubuntu-24.04-arm]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: node scripts/build.js
+        env:
+          KRL_SERVER: ${{ vars.KRL_SERVER }}
       - uses: actions/upload-artifact@v4
         with:
-          name: krl-agent-${{ matrix.os }}
+          name: agent-${{ matrix.os }}
           path: |
             dist/krl-agent-*
             dist/krl-agent.js
@@ -27,13 +30,17 @@ jobs:
             dist/install.ps1
             dist/SHA256SUMS
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+  android:
     runs-on: ubuntu-latest
-    permissions: { contents: write }
     steps:
-      - uses: actions/download-artifact@v4
-        with: { path: artifacts, merge-multiple: true }
-      - uses: softprops/action-gh-release@v2
-        with: { files: artifacts/* }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.9 }
+      - run: gradle -p android assembleRelease --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-unsigned
+          path: android/app/build/outputs/apk/release/*.apk
